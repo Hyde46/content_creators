@@ -9,6 +9,10 @@ use rsreddit::model::token::OAuthToken;
 use rsreddit::oauth2::{AuthorizationTime, RedditApiScope, RedditOAuth};
 use rsreddit::util::convert_scope_vec_to_string;
 
+mod model;
+mod text_saver;
+
+use text_saver::save_listings;
 pub fn main() {
     /*let mut reddit_oauth = RedditOAuth::default().build();
     let mut scopes = Vec::new();
@@ -47,6 +51,7 @@ enum State {
 enum Message {
     InputChanged(String),
     DirectoryInputChanged(String),
+    AmountChanged(String),
     Download,
 }
 
@@ -62,9 +67,11 @@ impl Application for ContentCreatoRS {
                 subreddit_input: text_input::State::focused(),
                 subreddit_input_value: String::from(""),
                 post_amount_input: text_input::State::new(),
-                post_amount_input_value: String::from(""),
+                post_amount_input_value: String::from("5"),
                 download_button: button::State::new(),
-                target_directory_value: String::from(""),
+                target_directory_value: String::from(
+                    "C:\\Users\\Document\\programming\\git\\content_creators\\test_output",
+                ),
                 target_directory_input: text_input::State::new(),
                 redditrs: Reddit::default()
                     .bearer_token(OAuthToken {
@@ -98,6 +105,12 @@ impl Application for ContentCreatoRS {
                 }
                 _ => {}
             },
+            Message::AmountChanged(value) => match self.state {
+                State::Idle => {
+                    self.post_amount_input_value = value;
+                }
+                _ => {}
+            },
             Message::Download => match self.state {
                 State::Idle => {
                     println!("Downloading highlights..");
@@ -108,12 +121,12 @@ impl Application for ContentCreatoRS {
                             "",
                             "",
                             0,
-                            1,
+                            self.post_amount_input_value.parse::<u32>().unwrap(),
                             false,
                             false,
                         )
                         .unwrap();
-                    println!("{:?}", answer);
+                    save_listings(answer, self.target_directory_value.clone());
                     //self.state = State::Downloading
                 }
                 _ => {}
@@ -157,18 +170,18 @@ impl Application for ContentCreatoRS {
             .color([0.7, 0.7, 0.7])
             .horizontal_alignment(HorizontalAlignment::Center);
         let post_amount_field = TextInput::new(
-                &mut self.post_amount_input,
-                "<amount>",
-                &mut self.post_amount_input_value,
-                Message::InputChanged,
-            )
-            .padding(10)
-            .width(Length::Units(85))
-            .size(15);
+            &mut self.post_amount_input,
+            "<amount>",
+            &mut self.post_amount_input_value,
+            Message::AmountChanged,
+        )
+        .padding(10)
+        .width(Length::Units(85))
+        .size(15);
 
         let diretory_input = TextInput::new(
             &mut self.target_directory_input,
-            "C:\\Users\\Monarch\\Downloads",
+            "C:\\Users\\Document\\programming\\git\\content_creators\\test_output",
             &mut self.target_directory_value,
             Message::DirectoryInputChanged,
         )
@@ -189,7 +202,7 @@ impl Application for ContentCreatoRS {
             .push(input);
 
         let amount_content = Row::new()
-            .align_items(Align::Start)
+            .align_items(Align::Center)
             .max_width(540)
             .spacing(2)
             .push(post_amount)
@@ -211,59 +224,5 @@ impl Application for ContentCreatoRS {
             .center_x()
             .center_y()
             .into()
-    }
-}
-
-mod style {
-    use iced::{button, Background, Color, Vector};
-
-    pub enum Button {
-        Filter { selected: bool },
-        Icon,
-        Destructive,
-    }
-
-    impl button::StyleSheet for Button {
-        fn active(&self) -> button::Style {
-            match self {
-                Button::Filter { selected } => {
-                    if *selected {
-                        button::Style {
-                            background: Some(Background::Color(Color::from_rgb(0.2, 0.2, 0.7))),
-                            border_radius: 10,
-                            text_color: Color::WHITE,
-                            ..button::Style::default()
-                        }
-                    } else {
-                        button::Style::default()
-                    }
-                }
-                Button::Icon => button::Style {
-                    text_color: Color::from_rgb(0.5, 0.5, 0.5),
-                    ..button::Style::default()
-                },
-                Button::Destructive => button::Style {
-                    background: Some(Background::Color(Color::from_rgb(0.8, 0.2, 0.2))),
-                    border_radius: 5,
-                    text_color: Color::WHITE,
-                    shadow_offset: Vector::new(1.0, 1.0),
-                    ..button::Style::default()
-                },
-            }
-        }
-
-        fn hovered(&self) -> button::Style {
-            let active = self.active();
-
-            button::Style {
-                text_color: match self {
-                    Button::Icon => Color::from_rgb(0.2, 0.2, 0.7),
-                    Button::Filter { selected } if !selected => Color::from_rgb(0.2, 0.2, 0.7),
-                    _ => active.text_color,
-                },
-                shadow_offset: active.shadow_offset + Vector::new(0.0, 1.0),
-                ..active
-            }
-        }
     }
 }
